@@ -169,6 +169,25 @@ function groupByDatetime() {
   return `Grouped ${issueBlocks.length} items into ${Object.keys(datetimeGroups).length} datetime groups with alternating backgrounds`;
 }
 
+// Function to create a tooltip element
+function createTooltip() {
+  const tooltip = document.createElement('div');
+  tooltip.id = 'cell-tooltip';
+  tooltip.style.position = 'absolute';
+  tooltip.style.display = 'none';
+  tooltip.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+  tooltip.style.color = '#fff';
+  tooltip.style.padding = '8px 12px';
+  tooltip.style.borderRadius = '4px';
+  tooltip.style.fontSize = '0.85em';
+  tooltip.style.zIndex = '9999';
+  tooltip.style.pointerEvents = 'none';
+  tooltip.style.maxWidth = '300px';
+  tooltip.style.boxShadow = '0 2px 5px rgba(0, 0, 0, 0.2)';
+  document.body.appendChild(tooltip);
+  return tooltip;
+}
+
 // Function to create a detailed summary table
 function createDetailedSummaryTable(datetimeGroups, consolidatedGroupData, activityNames) {
   // Find the container
@@ -276,8 +295,68 @@ function createDetailedSummaryTable(datetimeGroups, consolidatedGroupData, activ
     rowCount++;
   });
   
+  // Add tooltip functionality to table cells
+  addTooltipsToTable(table, headers);
+  
   // Add export buttons
   addExportButtons(container, table);
+}
+
+// Function to add tooltips to table cells
+function addTooltipsToTable(table, headers) {
+  // Create tooltip element
+  const tooltip = createTooltip();
+  
+  // Get all data cells (td) from the table
+  const cells = table.querySelectorAll('tbody td');
+  
+  cells.forEach((cell, index) => {
+    // Calculate which row and column this cell belongs to
+    const rowIndex = Math.floor(index / headers.length);
+    const columnIndex = index % headers.length;
+    
+    // Get header for this column
+    const headerText = headers[columnIndex];
+    
+    // Add event listeners for mouse events
+    cell.addEventListener('mouseover', (e) => {
+      // Get the row data for datetime and user (first two columns)
+      const row = cell.parentElement;
+      const datetime = row.cells[0].textContent;
+      const user = row.cells[1].textContent;
+      
+      // Create tooltip content
+      tooltip.innerHTML = `<strong>${headerText}</strong><br>
+                            ${datetime}: ${user}`;
+      
+      // Position the tooltip near the cursor
+      tooltip.style.display = 'block';
+      tooltip.style.left = (e.pageX + 15) + 'px';
+      tooltip.style.top = (e.pageY + 15) + 'px';
+      
+      // Add highlighting to the cell
+      cell.style.backgroundColor = '#ffffe0';
+    });
+    
+    cell.addEventListener('mousemove', (e) => {
+      // Reposition the tooltip when mouse moves
+      tooltip.style.left = (e.pageX + 15) + 'px';
+      tooltip.style.top = (e.pageY + 15) + 'px';
+    });
+    
+    cell.addEventListener('mouseout', () => {
+      // Hide the tooltip
+      tooltip.style.display = 'none';
+      
+      // Remove cell highlighting
+      const originalRowColor = cell.parentElement.style.backgroundColor;
+      cell.style.backgroundColor = originalRowColor;
+    });
+    
+    // Improve visual indication that cells are hoverable
+    cell.style.cursor = 'help';
+    cell.style.transition = 'background-color 0.2s';
+  });
 }
 
 // Function to add export buttons
