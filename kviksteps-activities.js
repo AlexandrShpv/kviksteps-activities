@@ -10,9 +10,15 @@ function extractDatetime(block) {
     return userElement ? userElement.textContent.trim() : '';
   }
   
+  // Function to extract all available field names
+  function getAllActivityNames() {
+    // Use a Set to get unique activity names
+    return [...new Set(Array.from(document.querySelectorAll('.activity-name')).map(element => element.textContent.trim()))];
+  }
+  
   // Function to extract field data from the changelog
   function extractFieldData(block, fieldName) {
-    // First try to find activity-name that matches the field
+    // Find activity-name that matches the field
     const activityRows = block.querySelectorAll('tr');
     for (const row of activityRows) {
       const activityName = row.querySelector('.activity-name');
@@ -32,10 +38,13 @@ function extractDatetime(block) {
     // Get all issue data blocks
     const issueBlocks = document.querySelectorAll('.issue-data-block');
     
+    // Get all unique activity names for dynamic headers
+    const activityNames = getAllActivityNames();
+    
     // Create a map to group blocks by exact datetime
     const datetimeGroups = {};
     
-    // Also store consolidated information for each datetime group
+    // Store consolidated information for each datetime group
     const consolidatedGroupData = {};
     
     // Process each block
@@ -52,42 +61,31 @@ function extractDatetime(block) {
         
         datetimeGroups[datetimeKey].push(block);
         
-        // Extract details from this block
+        // Extract user
         const user = extractUser(block);
-        const papildusAtbildigais = extractFieldData(block, 'Papildus atbildīgais');
-        const regions = extractFieldData(block, 'Reģions_nodaļa_OIB');
-        const currentAtbild = extractFieldData(block, 'Current_atbild');
-        const statusaTermins = extractFieldData(block, 'Statusa izpildes termiņš');
-        const sasaistit = extractFieldData(block, 'Sasaistīt');
-        const saskanojusi = extractFieldData(block, 'Saskaņojuši');
-        const atbildigais = extractFieldData(block, 'Atbildīgais');
-        const status = extractFieldData(block, 'Statuss');
         
         // Initialize or update consolidated data for this datetime
         if (!consolidatedGroupData[datetimeKey]) {
           consolidatedGroupData[datetimeKey] = {
-            user: new Set(),
-            papildusAtbildigais: new Set(),
-            regions: new Set(),
-            currentAtbild: new Set(),
-            statusaTermins: new Set(),
-            sasaistit: new Set(),
-            saskanojusi: new Set(),
-            atbildigais: new Set(),
-            status: new Set()
+            user: new Set()
           };
+          
+          // Initialize a Set for each activity name
+          activityNames.forEach(name => {
+            consolidatedGroupData[datetimeKey][name] = new Set();
+          });
         }
         
-        // Add non-empty values to the sets
+        // Add user if not empty
         if (user) consolidatedGroupData[datetimeKey].user.add(user);
-        if (papildusAtbildigais) consolidatedGroupData[datetimeKey].papildusAtbildigais.add(papildusAtbildigais);
-        if (regions) consolidatedGroupData[datetimeKey].regions.add(regions);
-        if (currentAtbild) consolidatedGroupData[datetimeKey].currentAtbild.add(currentAtbild);
-        if (statusaTermins) consolidatedGroupData[datetimeKey].statusaTermins.add(statusaTermins);
-        if (sasaistit) consolidatedGroupData[datetimeKey].sasaistit.add(sasaistit);
-        if (saskanojusi) consolidatedGroupData[datetimeKey].saskanojusi.add(saskanojusi);
-        if (atbildigais) consolidatedGroupData[datetimeKey].atbildigais.add(atbildigais);
-        if (status) consolidatedGroupData[datetimeKey].status.add(status);
+        
+        // Extract and add data for each activity field
+        activityNames.forEach(activityName => {
+          const fieldValue = extractFieldData(block, activityName);
+          if (fieldValue) {
+            consolidatedGroupData[datetimeKey][activityName].add(fieldValue);
+          }
+        });
       }
     });
     
@@ -147,13 +145,13 @@ function extractDatetime(block) {
     });
     
     // Create a detailed summary table below all groups
-    createDetailedSummaryTable(datetimeGroups, consolidatedGroupData);
+    createDetailedSummaryTable(datetimeGroups, consolidatedGroupData, activityNames);
     
     return `Grouped ${issueBlocks.length} items into ${Object.keys(datetimeGroups).length} datetime groups with alternating backgrounds`;
   }
   
   // Function to create a detailed summary table
-  function createDetailedSummaryTable(datetimeGroups, consolidatedGroupData) {
+  function createDetailedSummaryTable(datetimeGroups, consolidatedGroupData, activityNames) {
     // Find the container
     const container = document.querySelector('.issuePanelContainer');
     if (!container) return;
@@ -184,18 +182,8 @@ function extractDatetime(block) {
     const headerRow = document.createElement('tr');
     thead.appendChild(headerRow);
     
-    const headers = [
-      'Datetime', 
-      'User', 
-      'Papildus atbildīgais', 
-      'Reģions_nodaļa_OIB', 
-      'Current_atbild', 
-      'Statusa izpildes termiņš', 
-      'Sasaistīt', 
-      'Saskaņojuši', 
-      'Atbildīgais', 
-      'Statuss'
-    ];
+    // Build dynamic headers list
+    const headers = ['Datetime', 'User', ...activityNames];
     
     headers.forEach(text => {
       const th = document.createElement('th');
@@ -234,21 +222,25 @@ function extractDatetime(block) {
       // Function to convert Set to comma-separated string
       const setToString = (set) => Array.from(set).join(', ');
       
-      // Create cells for each column
-      [
-        formattedDatetime,
-        setToString(groupData.user),
-        setToString(groupData.papildusAtbildigais),
-        setToString(groupData.regions),
-        setToString(groupData.currentAtbild),
-        setToString(groupData.statusaTermins),
-        setToString(groupData.sasaistit),
-        setToString(groupData.saskanojusi),
-        setToString(groupData.atbildigais),
-        setToString(groupData.status)
-      ].forEach(value => {
+      // Create cell for datetime
+      const datetimeCell = document.createElement('td');
+      datetimeCell.textContent = formattedDatetime;
+      datetimeCell.style.padding = '8px';
+      datetimeCell.style.border = '1px solid #ddd';
+      row.appendChild(datetimeCell);
+      
+      // Create cell for user
+      const userCell = document.createElement('td');
+      userCell.textContent = setToString(groupData.user);
+      userCell.style.padding = '8px';
+      userCell.style.border = '1px solid #ddd';
+      row.appendChild(userCell);
+      
+      // Create cells for each activity name
+      activityNames.forEach(activityName => {
         const cell = document.createElement('td');
-        cell.textContent = value || '';
+        const activitySet = groupData[activityName];
+        cell.textContent = activitySet ? setToString(activitySet) : '';
         cell.style.padding = '8px';
         cell.style.border = '1px solid #ddd';
         row.appendChild(cell);
