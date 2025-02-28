@@ -1,3 +1,210 @@
+// Function to add draggable column functionality to the table
+function makeTableColumnsDraggable(table) {
+  const thead = table.querySelector('thead');
+  if (!thead) return;
+  
+  const headerRow = thead.querySelector('tr');
+  if (!headerRow) return;
+  
+  const headers = headerRow.querySelectorAll('th');
+  let draggedHeader = null;
+  let startX = 0;
+  let startWidth = 0;
+  
+  // Remove fixed table layout to allow auto-sizing
+  table.style.tableLayout = 'auto';
+  
+  // Set initial column widths based on content
+  headers.forEach(header => {
+      header.style.width = 'auto'; // Allow columns to auto-size
+      header.style.whiteSpace = 'nowrap'; // Prevent text wrapping
+  });
+  
+  // Force the table to calculate its layout
+  table.offsetHeight; // Trigger reflow
+  
+  // Now set the calculated widths
+  headers.forEach(header => {
+      const width = header.offsetWidth + 20; // Add padding
+      header.style.width = `${width}px`;
+  });
+  
+  // Lock the table layout to enforce the set widths
+  table.style.tableLayout = 'fixed'; // Add this line  
+
+  // Create and append resizers to each header cell
+  headers.forEach((header, index) => {
+    // Don't add resizer to the last column
+    if (index < headers.length - 1) {
+      // Position the header cell relatively
+      header.style.position = 'relative';
+      
+      // Create the resizer element
+      const resizer = document.createElement('div');
+      resizer.className = 'column-resizer';
+      resizer.style.position = 'absolute';
+      resizer.style.top = '0';
+      resizer.style.right = '0';
+      resizer.style.width = '5px';
+      resizer.style.height = '100%';
+      resizer.style.background = 'transparent';
+      resizer.style.cursor = 'col-resize';
+      resizer.style.userSelect = 'none';
+      resizer.style.zIndex = '1';
+      
+      // Add hover effect
+      resizer.addEventListener('mouseover', () => {
+        resizer.style.background = '#ccc';
+      });
+      
+      resizer.addEventListener('mouseout', () => {
+        resizer.style.background = 'transparent';
+      });
+      
+      // Add the resizer to the header
+      header.appendChild(resizer);
+      
+      // Attach drag event handlers
+      resizer.addEventListener('mousedown', (e) => {
+        draggedHeader = header;
+        startX = e.pageX;
+        startWidth = header.offsetWidth;
+        
+        // Prevent text selection during drag
+        document.body.style.userSelect = 'none';
+        
+        // Add visual feedback
+        resizer.style.background = '#0078d7';
+        
+        // Add event listeners for drag movement and end
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
+        
+        // Prevent default to stop text selection
+        e.preventDefault();
+      });
+    }
+  });
+  
+  // Mouse move handler
+  function onMouseMove(e) {
+    if (draggedHeader) {
+      // Calculate new width
+      const newWidth = Math.max(50, startWidth + (e.pageX - startX));
+      
+      // Apply new width
+      draggedHeader.style.width = newWidth + 'px';
+      
+      // Show width in a tooltip or status indicator
+      updateDragStatus(newWidth);
+    }
+  }
+  
+  // Mouse up handler
+  function onMouseUp() {
+    if (draggedHeader) {
+      // Reset dragging state
+      const resizer = draggedHeader.querySelector('.column-resizer');
+      if (resizer) {
+        resizer.style.background = 'transparent';
+      }
+      
+      draggedHeader = null;
+      
+      // Remove event listeners
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+      
+      // Re-enable text selection
+      document.body.style.userSelect = '';
+      
+      // Hide width indicator
+      hideDragStatus();
+    }
+  }
+  
+  // Create status indicator for column resizing
+  const statusIndicator = document.createElement('div');
+  statusIndicator.id = 'column-resize-status';
+  statusIndicator.style.position = 'fixed';
+  statusIndicator.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+  statusIndicator.style.color = 'white';
+  statusIndicator.style.padding = '5px 8px';
+  statusIndicator.style.borderRadius = '3px';
+  statusIndicator.style.fontSize = '12px';
+  statusIndicator.style.zIndex = '1000';
+  statusIndicator.style.display = 'none';
+  document.body.appendChild(statusIndicator);
+  
+  // Function to update the drag status indicator
+  function updateDragStatus(width) {
+    statusIndicator.textContent = `Width: ${width}px`;
+    statusIndicator.style.display = 'block';
+    statusIndicator.style.left = (event.pageX + 10) + 'px';
+    statusIndicator.style.top = (event.pageY + 10) + 'px';
+  }
+  
+  // Function to hide the drag status indicator
+  function hideDragStatus() {
+    statusIndicator.style.display = 'none';
+  }
+  
+  // Add double-click to reset column width
+  headers.forEach(header => {
+    const resizer = header.querySelector('.column-resizer');
+    if (resizer) {
+      resizer.addEventListener('dblclick', () => {
+        // Reset to auto width
+        header.style.width = 'auto';
+        table.style.tableLayout = 'auto'; // Re-enable auto layout
+        table.offsetHeight; // Trigger reflow
+        const width = header.offsetWidth + 20; // Add padding
+        header.style.width = `${width}px`; // Set new width
+        table.style.tableLayout = 'fixed'; // Add this line to enforce the width
+      });
+    }
+  });
+  
+  // Add instructions above the table
+  const instructionText = document.createElement('div');
+  instructionText.innerHTML = '<small><em>Tip: Drag column edges to resize. Double-click column edge to reset width.</em></small>';
+  instructionText.style.marginBottom = '5px';
+  instructionText.style.color = '#666';
+  table.parentNode.insertBefore(instructionText, table);
+  
+  // Store initial column widths
+  const initialWidths = Array.from(headers).map(header => header.offsetWidth);
+  
+  // Add reset button
+  const resetButton = document.createElement('button');
+  resetButton.textContent = 'Reset Column Widths';
+  resetButton.style.marginBottom = '10px';
+  resetButton.style.padding = '4px 8px';
+  resetButton.style.fontSize = '12px';
+  resetButton.style.cursor = 'pointer';
+  resetButton.style.backgroundColor = '#f0f0f0';
+  resetButton.style.border = '1px solid #ccc';
+  resetButton.style.borderRadius = '3px';
+  
+  resetButton.addEventListener('click', () => {
+    headers.forEach((header, index) => {
+      if (index < initialWidths.length) {
+        header.style.width = 'auto'; // Reset to auto width
+        table.style.tableLayout = 'auto'; // Re-enable auto layout
+        table.offsetHeight; // Trigger reflow
+        const width = header.offsetWidth + 20; // Add padding
+        header.style.width = `${width}px`; // Set new width
+      }
+    });
+    table.style.tableLayout = 'fixed'; // Add this line to enforce the widths
+  });
+  
+  table.parentNode.insertBefore(resetButton, instructionText);
+  
+  return 'Added draggable column functionality to table';
+}
+  
+
 // Function to extract datetime from an issue-data-block
 function extractDatetime(block) {
   const timeElement = block.querySelector('time.livestamp');
@@ -211,6 +418,7 @@ function createDetailedSummaryTable(datetimeGroups, consolidatedGroupData, activ
   table.style.borderCollapse = 'collapse';
   table.style.marginBottom = '20px';
   table.style.fontSize = '0.85em';
+  table.style.tableLayout = 'fixed'; // Added fixed layout for better column resizing
   container.appendChild(table);
   
   // Create table header
@@ -230,6 +438,9 @@ function createDetailedSummaryTable(datetimeGroups, consolidatedGroupData, activ
     th.style.padding = '8px';
     th.style.border = '1px solid #ddd';
     th.style.textAlign = 'left';
+    th.style.overflow = 'hidden';
+    th.style.textOverflow = 'ellipsis';
+    th.style.whiteSpace = 'nowrap';
     headerRow.appendChild(th);
   });
   
@@ -265,6 +476,8 @@ function createDetailedSummaryTable(datetimeGroups, consolidatedGroupData, activ
     datetimeCell.textContent = formattedDatetime;
     datetimeCell.style.padding = '8px';
     datetimeCell.style.border = '1px solid #ddd';
+    datetimeCell.style.overflow = 'hidden';
+    datetimeCell.style.textOverflow = 'ellipsis';
     row.appendChild(datetimeCell);
     
     // Create cell for user (2nd column)
@@ -272,6 +485,8 @@ function createDetailedSummaryTable(datetimeGroups, consolidatedGroupData, activ
     userCell.textContent = setToString(groupData.user);
     userCell.style.padding = '8px';
     userCell.style.border = '1px solid #ddd';
+    userCell.style.overflow = 'hidden';
+    userCell.style.textOverflow = 'ellipsis';
     row.appendChild(userCell);
     
     // Create cell for comments (3rd column)
@@ -280,6 +495,8 @@ function createDetailedSummaryTable(datetimeGroups, consolidatedGroupData, activ
     commentsCell.textContent = comments ? setToString(comments) : '';
     commentsCell.style.padding = '8px';
     commentsCell.style.border = '1px solid #ddd';
+    commentsCell.style.overflow = 'hidden';
+    commentsCell.style.textOverflow = 'ellipsis';
     row.appendChild(commentsCell);
     
     // Create cells for each activity name (remaining columns)
@@ -289,6 +506,8 @@ function createDetailedSummaryTable(datetimeGroups, consolidatedGroupData, activ
       cell.textContent = activitySet ? setToString(activitySet) : '';
       cell.style.padding = '8px';
       cell.style.border = '1px solid #ddd';
+      cell.style.overflow = 'hidden';
+      cell.style.textOverflow = 'ellipsis';
       row.appendChild(cell);
     });
     rowCount++;
@@ -299,6 +518,9 @@ function createDetailedSummaryTable(datetimeGroups, consolidatedGroupData, activ
   
   // Add export buttons
   addExportButtons(container, table);
+  
+  // Make columns draggable
+  makeTableColumnsDraggable(table);
 }
 
 // Function to add tooltips to table cells
@@ -319,28 +541,35 @@ function addTooltipsToTable(table, headers) {
     
     // Add event listeners for mouse events
     cell.addEventListener('mouseover', (e) => {
-      // Get the row data for datetime and user (first two columns)
-      const row = cell.parentElement;
-      const datetime = row.cells[0].textContent;
-      const user = row.cells[1].textContent;
+      // Check if the text is truncated (overflowing)
+      const isTruncated = cell.scrollWidth > cell.clientWidth;
       
-      // Create tooltip content
-      tooltip.innerHTML = `<strong>${headerText}</strong><br>
-                            ${datetime}: ${user}`;
-      
-      // Position the tooltip near the cursor
-      tooltip.style.display = 'block';
-      tooltip.style.left = (e.pageX + 15) + 'px';
-      tooltip.style.top = (e.pageY + 15) + 'px';
-      
-      // Add highlighting to the cell
-      cell.style.backgroundColor = '#ffffe0';
+        // Get the row data for datetime and user (first two columns)
+        const row = cell.parentElement;
+        const datetime = row.cells[0].textContent;
+        const user = row.cells[1].textContent;
+        
+        // Create tooltip content
+        tooltip.innerHTML = `<strong>${headerText}</strong><br>
+                            ${datetime}: ${user}<br><br>
+                            <strong>Full content:</strong><br>
+                            ${cell.textContent}`;
+        
+        // Position the tooltip near the cursor
+        tooltip.style.display = 'block';
+        tooltip.style.left = (e.pageX + 15) + 'px';
+        tooltip.style.top = (e.pageY + 15) + 'px';
+        
+        // Add highlighting to the cell
+        cell.style.backgroundColor = '#ffffe0';
     });
     
     cell.addEventListener('mousemove', (e) => {
-      // Reposition the tooltip when mouse moves
-      tooltip.style.left = (e.pageX + 15) + 'px';
-      tooltip.style.top = (e.pageY + 15) + 'px';
+      if (tooltip.style.display === 'block') {
+        // Reposition the tooltip when mouse moves
+        tooltip.style.left = (e.pageX + 15) + 'px';
+        tooltip.style.top = (e.pageY + 15) + 'px';
+      }
     });
     
     cell.addEventListener('mouseout', () => {
