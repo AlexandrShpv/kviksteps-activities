@@ -220,8 +220,8 @@ function createDetailedSummaryTable(datetimeGroups, consolidatedGroupData, activ
   const headerRow = document.createElement('tr');
   thead.appendChild(headerRow);
   
-  // Build dynamic headers list with Comments at the end
-  const headers = ['Datetime', 'User', ...activityNames, 'Comments'];
+  // Build headers list with Comments in the third position
+  const headers = ['Datetime', 'User', 'Comments', ...activityNames];
   
   headers.forEach(text => {
     const th = document.createElement('th');
@@ -260,21 +260,29 @@ function createDetailedSummaryTable(datetimeGroups, consolidatedGroupData, activ
     // Function to convert Set to comma-separated string
     const setToString = (set) => Array.from(set).join(', ');
     
-    // Create cell for datetime
+    // Create cell for datetime (1st column)
     const datetimeCell = document.createElement('td');
     datetimeCell.textContent = formattedDatetime;
     datetimeCell.style.padding = '8px';
     datetimeCell.style.border = '1px solid #ddd';
     row.appendChild(datetimeCell);
     
-    // Create cell for user
+    // Create cell for user (2nd column)
     const userCell = document.createElement('td');
     userCell.textContent = setToString(groupData.user);
     userCell.style.padding = '8px';
     userCell.style.border = '1px solid #ddd';
     row.appendChild(userCell);
     
-    // Create cells for each activity name
+    // Create cell for comments (3rd column)
+    const commentsCell = document.createElement('td');
+    const comments = groupData.comments;
+    commentsCell.textContent = comments ? setToString(comments) : '';
+    commentsCell.style.padding = '8px';
+    commentsCell.style.border = '1px solid #ddd';
+    row.appendChild(commentsCell);
+    
+    // Create cells for each activity name (remaining columns)
     activityNames.forEach(activityName => {
       const cell = document.createElement('td');
       const activitySet = groupData[activityName];
@@ -283,15 +291,6 @@ function createDetailedSummaryTable(datetimeGroups, consolidatedGroupData, activ
       cell.style.border = '1px solid #ddd';
       row.appendChild(cell);
     });
-    
-    // Create cell for comments
-    const commentsCell = document.createElement('td');
-    const comments = groupData.comments;
-    commentsCell.textContent = comments ? setToString(comments) : '';
-    commentsCell.style.padding = '8px';
-    commentsCell.style.border = '1px solid #ddd';
-    row.appendChild(commentsCell);
-    
     rowCount++;
   });
   

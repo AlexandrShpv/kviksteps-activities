@@ -1,3 +1,5 @@
 # .gitingnore
+node_modules/
+dist/
 *.tmp.js
 *.tmp.html
